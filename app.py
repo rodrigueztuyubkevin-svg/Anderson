@@ -238,7 +238,7 @@ def ver_qr_prestamo(codigo):
     # Generar URL absoluta de Render para el QR
     url_publica = url_for("comprobante_publico", codigo=codigo, _external=True)
     
-    # Generar imagen QR en memoria con la URL
+    # Generar imagen QR en memoria
     img = qrcode.make(url_publica)
     buffered = BytesIO()
     img.save(buffered, format="PNG")
@@ -291,8 +291,6 @@ def mis_apartados():
 def perfil():
     usuario = db.usuarios.find_one({"_id": ObjectId(session["usuario_id"])})
     
-    # URL pública para el perfil
-    url_publica = url_for("index", _external=True) # O una ficha de usuario
     img = qrcode.make(f"BIB|{usuario['matricula']}|{usuario['email']}")
     buffered = BytesIO()
     img.save(buffered, format="PNG")
@@ -335,7 +333,6 @@ def admin_panel():
 def admin_devolucion_qr():
     raw_input = request.form.get("codigo_qr", "").strip()
     
-    # Si el lector escanea la URL del QR, extraemos el código
     if "/comprobante/" in raw_input:
         codigo_prestamo = raw_input.split("/comprobante/")[-1].strip().upper()
     else:

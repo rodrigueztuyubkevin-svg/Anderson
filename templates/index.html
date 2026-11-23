@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Catálogo{% endblock %}
+{% block content %}
+<h1 class="h3 fw-semibold mb-1">Catálogo de libros</h1>
+<p class="text-muted mb-4">Solo se muestran los libros con ejemplares disponibles.</p>
+
+{% if libros %}
+<div class="row g-4">
+  {% for libro in libros %}
+  <div class="col-sm-6 col-lg-4">
+    <div class="card card-libro h-100">
+      <img src="{{ libro.portada_url or 'https://placehold.co/400x600/e5e0d4/1f4d3a?text=Sin+portada' }}"
+           class="portada" alt="Portada de {{ libro.titulo }}">
+      <div class="card-body">
+        <h5 class="card-title fw-semibold">{{ libro.titulo }}</h5>
+        <p class="text-muted small mb-2">{{ libro.autor }}</p>
+        <p class="small mb-3">
+          <i class="bi bi-check2-circle me-1 text-success"></i>
+          {{ libro.ejemplares_disponibles }} de {{ libro.ejemplares_total }} disponibles
+        </p>
+        <a href="{{ url_for('libro_detalle', libro_id=libro._id) }}" class="btn btn-bosque w-100">
+          <i class="bi bi-eye me-1"></i>Ver detalle
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+  <i class="bi bi-inbox display-4 text-muted"></i>
+  <p class="text-muted mt-2">No hay libros disponibles por ahora.</p>
+</div>
+{% endif %}
+{% endblock %}

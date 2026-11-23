@@ -1,0 +1,55 @@
+:root {
+  --bosque: #1f4d3a;
+  --bosque-claro: #2f6b52;
+  --crema: #f6f3ec;
+  --gris-calido: #6b6b63;
+  --dorado: #c9a227;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--crema);
+  color: #2c2c28;
+}
+
+.bg-bosque { background-color: var(--bosque) !important; }
+
+.navbar .nav-link { color: #e8e4d8 !important; }
+.navbar .nav-link:hover { color: #ffffff !important; }
+
+.btn-bosque {
+  background-color: var(--bosque);
+  color: #fff;
+  border-radius: 10px;
+}
+.btn-bosque:hover { background-color: var(--bosque-claro); color: #fff; }
+
+.card-libro {
+  border: 1px solid #e5e0d4;
+  border-radius: 14px;
+  background: #fff;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.card-libro:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(31, 77, 58, .12);
+}
+
+.portada {
+  height: 220px;
+  object-fit: cover;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  background: #ddd8c9;
+}
+
+.credencial {
+  background: linear-gradient(135deg, var(--bosque), var(--bosque-claro));
+  color: #fff;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.badge-estado { text-transform: uppercase; letter-spacing: .5px; font-size: .72rem; }
+
+.tabla-admin th { font-weight: 600; color: var(--gris-calido); }

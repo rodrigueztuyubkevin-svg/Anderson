@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Mis apartados{% endblock %}
+{% block content %}
+<h1 class="h3 fw-semibold mb-4">Mis apartados</h1>
+
+{% if apartados %}
+<div class="table-responsive">
+  <table class="table align-middle tabla-admin bg-white rounded-3 overflow-hidden">
+    <thead class="table-light">
+      <tr>
+        <th>Libro</th><th>Estado</th><th>Creado</th><th>Confirmado</th><th class="text-end">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ap in apartados %}
+      <tr>
+        <td class="fw-semibold">{{ ap.libro_titulo }}</td>
+        <td>
+          <span class="badge badge-estado
+            {% if ap.estado == 'confirmado' %}bg-success
+            {% elif ap.estado == 'pendiente' %}bg-warning text-dark
+            {% elif ap.estado == 'cancelado' %}bg-secondary
+            {% else %}bg-danger{% endif %}">
+            {{ ap.estado }}
+          </span>
+        </td>
+        <td class="text-muted small">{{ ap.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td class="text-muted small">
+          {{ ap.confirmado_en.strftime('%d/%m/%Y %H:%M') if ap.confirmado_en else '—' }}
+        </td>
+        <td class="text-end">
+          {% if ap.estado == 'pendiente' %}
+            <a href="{{ url_for('confirmar', codigo=ap.codigo_confirmacion) }}"
+               class="btn btn-sm btn-bosque">Confirmar</a>
+          {% endif %}
+          {% if ap.estado in ['pendiente', 'confirmado'] %}
+            <form method="POST" action="{{ url_for('cancelar', apartado_id=ap._id) }}" class="d-inline">
+              <button class="btn btn-sm btn-outline-danger">Cancelar</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center py-5">
+  <i class="bi bi-bookmark display-4 text-muted"></i>
+  <p class="text-muted mt-2">Aún no tienes apartados.</p>
+</div>
+{% endif %}
+{% endblock %}

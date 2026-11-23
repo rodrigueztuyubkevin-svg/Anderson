@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Biblioteca{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/estilos.css') }}" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-bosque">
+  <div class="container">
+    <a class="navbar-brand fw-semibold" href="{{ url_for('index') }}">
+      <i class="bi bi-book-half me-2"></i>Biblioteca
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav ms-auto align-items-lg-center">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}"><i class="bi bi-collection me-1"></i>Catálogo</a></li>
+        {% if session.usuario_id %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('mis_apartados') }}"><i class="bi bi-bookmark me-1"></i>Mis apartados</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('perfil') }}"><i class="bi bi-person-badge me-1"></i>Perfil</a></li>
+          {% if session.rol == 'admin' %}
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_panel') }}"><i class="bi bi-sliders me-1"></i>Admin</a></li>
+          {% endif %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-1"></i>Salir</a></li>
+        {% else %}
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}"><i class="bi bi-box-arrow-in-right me-1"></i>Entrar</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('registro') }}"><i class="bi bi-person-plus me-1"></i>Registro</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<main class="py-4">
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for categoria, msg in messages %}
+        <div class="alert alert-{{ categoria }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<footer class="py-4 text-center text-muted small">
+  Biblioteca &middot; Sistema de apartados y préstamos
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -19,7 +19,6 @@ app.secret_key = os.environ.get("SECRET_KEY", "cambia_esto")
 client = MongoClient(os.environ.get("MONGO_URI"))
 db = client.get_database("biblioteca_db")
 
-# CAMBIO: Ahora son 5 minutos para confirmar
 MINUTOS_EXPIRACION = 5
 
 
@@ -34,6 +33,7 @@ def init_db():
     db.apartados.create_index([("codigo_confirmacion", ASCENDING)])
     db.apartados.create_index([("usuario_id", ASCENDING)])
     db.prestamos.create_index([("usuario_id", ASCENDING)])
+    db.prestamos.create_index([("codigo_prestamo", ASCENDING)], unique=True)
 
 
 def login_required(f):
@@ -211,12 +211,48 @@ def confirmar_ok(codigo):
         flash("El código expiró. Vuelve a apartar el libro.", "warning")
         return redirect(url_for("index"))
 
+    # Generar código único de préstamo
+    codigo_prestamo = "PR-" + uuid.uuid4().hex[:6].upper()
+    
+    usuario = db.usuarios.find_one({"_id": ap["usuario_id"]})
+
+    # Actualizar apartado
     db.apartados.update_one(
         {"_id": ap["_id"]},
-        {"$set": {"estado": "confirmado", "confirmado_en": ahora()}},
+        {"$set": {"estado": "confirmado", "confirmado_en": ahora(), "codigo_prestamo": codigo_prestamo}},
     )
-    flash("Apartado confirmado.", "success")
-    return redirect(url_for("mis_apartados"))
+
+    # Crear el registro de préstamo oficial
+    db.prestamos.insert_one({
+        "usuario_id": usuario["_id"],
+        "usuario_nombre": usuario["nombre"],
+        "matricula": usuario["matricula"],
+        "libro_id": ap["libro_id"],
+        "libro_titulo": ap["libro_titulo"],
+        "codigo_prestamo": codigo_prestamo,
+        "fecha_prestamo": ahora(),
+        "fecha_devolucion": None,
+        "estado": "activo",
+    })
+
+    flash("Apartado confirmado. Presenta el código QR para recoger tu libro.", "success")
+    return redirect(url_for("ver_qr_prestamo", codigo=codigo_prestamo))
+
+
+@app.route("/prestamo/qr/<codigo>")
+@login_required
+def ver_qr_prestamo(codigo):
+    prestamo = db.prestamos.find_one({
+        "codigo_prestamo": codigo,
+        "usuario_id": ObjectId(session["usuario_id"])
+    })
+    if not prestamo:
+        flash("Préstamo no encontrado.", "danger")
+        return redirect(url_for("mis_apartados"))
+    
+    # Datos que irán dentro del QR
+    qr_data = f"PRESTAMO|{prestamo['codigo_prestamo']}|{prestamo['matricula']}"
+    return render_template("qr_prestamo.html", prestamo=prestamo, qr_data=qr_data)
 
 
 @app.route("/cancelar/<apartado_id>", methods=["POST"])
@@ -291,6 +327,50 @@ def admin_panel():
     )
 
 
+# NUEVA RUTA: Check de devolución por QR/Código
+@app.route("/admin/devolucion_qr", methods=["POST"])
+@admin_required
+def admin_devolucion_qr():
+    # El admin puede escanear el QR (que manda PRESTAMO|CODIGO|MATRICULA) o solo escribir el código
+    raw_input = request.form.get("codigo_qr", "").strip()
+    
+    # Si el lector escaneó todo el texto del QR, extraemos solo el código
+    if "|" in raw_input:
+        partes = raw_input.split("|")
+        if len(partes) >= 2:
+            codigo_prestamo = partes[1].strip().upper()
+        else:
+            flash("Formato de QR no válido.", "danger")
+            return redirect(url_for("admin_panel"))
+    else:
+        codigo_prestamo = raw_input.upper()
+
+    prestamo = db.prestamos.find_one({"codigo_prestamo": codigo_prestamo, "estado": "activo"})
+    
+    if not prestamo:
+        flash("No se encontró un préstamo activo con ese código.", "danger")
+        return redirect(url_for("admin_panel"))
+
+    # Marcar como devuelto
+    db.prestamos.update_one(
+        {"_id": prestamo["_id"]},
+        {"$set": {"estado": "devuelto", "fecha_devolucion": ahora()}},
+    )
+    
+    # Devolver el ejemplar al catálogo
+    db.libros.update_one(
+        {"_id": prestamo["libro_id"]}, {"$inc": {"ejemplares_disponibles": 1}}
+    )
+    
+    # Actualizar el apartado relacionado
+    db.apartados.update_one(
+        {"codigo_prestamo": codigo_prestamo}, {"$set": {"estado": "devuelto"}}
+    )
+
+    flash(f"Devolución exitosa: {prestamo['libro_titulo']} devuelto por {prestamo['usuario_nombre']}.", "success")
+    return redirect(url_for("admin_panel"))
+
+
 @app.route("/admin/libro/nuevo", methods=["POST"])
 @admin_required
 def admin_libro_nuevo():
@@ -359,6 +439,7 @@ def admin_prestamo():
         "matricula": matricula,
         "libro_id": libro["_id"],
         "libro_titulo": libro["titulo"],
+        "codigo_prestamo": "PR-" + uuid.uuid4().hex[:6].upper(),
         "fecha_prestamo": ahora(),
         "fecha_devolucion": None,
         "estado": "activo",
@@ -370,11 +451,16 @@ def admin_prestamo():
 @app.route("/admin/prestamo/<prestamo_id>/devolver", methods=["POST"])
 @admin_required
 def admin_devolver(prestamo_id):
-    db.prestamos.update_one(
-        {"_id": ObjectId(prestamo_id)},
-        {"$set": {"estado": "devuelto", "fecha_devolucion": ahora()}},
-    )
-    flash("Devolución registrada.", "success")
+    prestamo = db.prestamos.find_one({"_id": ObjectId(prestamo_id)})
+    if prestamo:
+        db.prestamos.update_one(
+            {"_id": prestamo["_id"]},
+            {"$set": {"estado": "devuelto", "fecha_devolucion": ahora()}},
+        )
+        db.libros.update_one(
+            {"_id": prestamo["libro_id"]}, {"$inc": {"ejemplares_disponibles": 1}}
+        )
+        flash("Devolución registrada.", "success")
     return redirect(url_for("admin_panel"))
 
 

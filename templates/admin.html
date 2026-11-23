@@ -120,32 +120,55 @@
 
 <!-- Préstamos -->
 <section>
-  <h2 class="h5 fw-semibold mb-3"><i class="bi bi-arrow-left-right me-2"></i>Préstamos</h2>
-  <div class="card p-3 mb-3">
-    <form method="POST" action="{{ url_for('admin_prestamo') }}" class="row g-2 align-items-end">
-      <div class="col-md-3"><label class="form-label small">Matrícula (QR)</label>
-        <input name="matricula" class="form-control" placeholder="BIB-XXXXXXXX" required></div>
-      <div class="col-md-5"><label class="form-label small">Libro</label>
-        <select name="libro_id" class="form-select" required>
-          <option value="">Selecciona un libro</option>
-          {% for l in libros %}
-            {% if l.ejemplares_disponibles > 0 %}
-            <option value="{{ l._id }}">{{ l.titulo }} ({{ l.ejemplares_disponibles }})</option>
-            {% endif %}
-          {% endfor %}
-        </select></div>
-      <div class="col-md-2"><button class="btn btn-bosque w-100">Registrar</button></div>
-    </form>
+  <h2 class="h5 fw-semibold mb-3"><i class="bi bi-arrow-left-right me-2"></i>Préstamos y Devoluciones</h2>
+  
+  <div class="row g-3 mb-3">
+    <!-- Formulario de escaneo QR / Devolución rápida -->
+    <div class="col-md-5">
+      <div class="card p-3 border-success border-2 h-100 bg-light">
+        <h3 class="h6 fw-bold text-success mb-3"><i class="bi bi-qr-code-scan me-1"></i>Check de Devolución (QR)</h3>
+        <form method="POST" action="{{ url_for('admin_devolucion_qr') }}">
+          <label class="form-label small">Escanea el QR o escribe el código (Ej. PR-ABC123)</label>
+          <div class="input-group">
+            <input name="codigo_qr" class="form-control" placeholder="PR-..." required autofocus>
+            <button class="btn btn-success" type="submit"><i class="bi bi-check-lg"></i> Recibir</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Formulario de préstamo manual -->
+    <div class="col-md-7">
+      <div class="card p-3 h-100">
+        <h3 class="h6 fw-bold mb-3"><i class="bi bi-person-plus me-1"></i>Registrar Préstamo Manual</h3>
+        <form method="POST" action="{{ url_for('admin_prestamo') }}" class="row g-2 align-items-end">
+          <div class="col-md-4"><label class="form-label small">Matrícula</label>
+            <input name="matricula" class="form-control" placeholder="BIB-XXXXXXXX" required></div>
+          <div class="col-md-6"><label class="form-label small">Libro</label>
+            <select name="libro_id" class="form-select" required>
+              <option value="">Selecciona un libro</option>
+              {% for l in libros %}
+                {% if l.ejemplares_disponibles > 0 %}
+                <option value="{{ l._id }}">{{ l.titulo }} ({{ l.ejemplares_disponibles }})</option>
+                {% endif %}
+              {% endfor %}
+            </select></div>
+          <div class="col-md-2"><button class="btn btn-bosque w-100">Registrar</button></div>
+        </form>
+      </div>
+    </div>
   </div>
 
+  <!-- Tabla de Préstamos Activos -->
   <div class="table-responsive">
     <table class="table align-middle tabla-admin bg-white">
       <thead class="table-light">
-        <tr><th>Matrícula</th><th>Usuario</th><th>Libro</th><th>Fecha</th><th>Estado</th><th class="text-end">Acciones</th></tr>
+        <tr><th>Código</th><th>Matrícula</th><th>Usuario</th><th>Libro</th><th>Fecha</th><th>Estado</th><th class="text-end">Acciones</th></tr>
       </thead>
       <tbody>
         {% for p in prestamos %}
         <tr>
+          <td><code>{{ p.codigo_prestamo or 'N/A' }}</code></td>
           <td>{{ p.matricula }}</td>
           <td>{{ p.usuario_nombre }}</td>
           <td>{{ p.libro_titulo }}</td>
@@ -154,7 +177,7 @@
           <td class="text-end">
             {% if p.estado == 'activo' %}
             <form method="POST" action="{{ url_for('admin_devolver', prestamo_id=p._id) }}" class="d-inline">
-              <button class="btn btn-sm btn-outline-dark">Devolver</button>
+              <button class="btn btn-sm btn-outline-dark">Devolver manual</button>
             </form>
             {% endif %}
           </td>

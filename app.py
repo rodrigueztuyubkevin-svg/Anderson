@@ -235,14 +235,25 @@ def ver_qr_prestamo(codigo):
         flash("Préstamo no encontrado.", "danger")
         return redirect(url_for("mis_apartados"))
     
-    # Generar imagen QR en memoria
-    qr_data = f"PRESTAMO|{prestamo['codigo_prestamo']}|{prestamo['matricula']}"
-    img = qrcode.make(qr_data)
+    # Generar URL absoluta de Render para el QR
+    url_publica = url_for("comprobante_publico", codigo=codigo, _external=True)
+    
+    # Generar imagen QR en memoria con la URL
+    img = qrcode.make(url_publica)
     buffered = BytesIO()
     img.save(buffered, format="PNG")
     qr_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-    return render_template("qr_prestamo.html", prestamo=prestamo, qr_base64=qr_base64)
+    return render_template("qr_prestamo.html", prestamo=prestamo, qr_base64=qr_base64, url_publica=url_publica)
+
+# NUEVA RUTA PÚBLICA: El QR apunta aquí
+@app.route("/comprobante/<codigo>")
+def comprobante_publico(codigo):
+    prestamo = db.prestamos.find_one({"codigo_prestamo": codigo})
+    if not prestamo:
+        flash("Comprobante no encontrado o inválido.", "danger")
+        return redirect(url_for("index"))
+    return render_template("comprobante.html", prestamo=prestamo)
 
 @app.route("/cancelar/<apartado_id>", methods=["POST"])
 @login_required
@@ -279,10 +290,10 @@ def mis_apartados():
 @login_required
 def perfil():
     usuario = db.usuarios.find_one({"_id": ObjectId(session["usuario_id"])})
-    qr_data = f"BIB|{usuario['matricula']}|{usuario['email']}"
     
-    # Generar QR de perfil
-    img = qrcode.make(qr_data)
+    # URL pública para el perfil
+    url_publica = url_for("index", _external=True) # O una ficha de usuario
+    img = qrcode.make(f"BIB|{usuario['matricula']}|{usuario['email']}")
     buffered = BytesIO()
     img.save(buffered, format="PNG")
     qr_base64 = base64.b64encode(buffered.getvalue()).decode()
@@ -324,13 +335,9 @@ def admin_panel():
 def admin_devolucion_qr():
     raw_input = request.form.get("codigo_qr", "").strip()
     
-    if "|" in raw_input:
-        partes = raw_input.split("|")
-        if len(partes) >= 2:
-            codigo_prestamo = partes[1].strip().upper()
-        else:
-            flash("Formato de QR no válido.", "danger")
-            return redirect(url_for("admin_panel"))
+    # Si el lector escanea la URL del QR, extraemos el código
+    if "/comprobante/" in raw_input:
+        codigo_prestamo = raw_input.split("/comprobante/")[-1].strip().upper()
     else:
         codigo_prestamo = raw_input.upper()
 

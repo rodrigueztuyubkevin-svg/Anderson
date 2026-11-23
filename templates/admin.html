@@ -1,7 +1,40 @@
 {% extends "base.html" %}
 {% block title %}Administración{% endblock %}
 {% block content %}
-<h1 class="h3 fw-semibold mb-4">Panel de administración</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 fw-semibold mb-0">Panel de administración</h1>
+  <a href="{{ url_for('admin_usuarios') }}" class="btn btn-bosque">
+    <i class="bi bi-people me-1"></i>Usuarios
+  </a>
+</div>
+
+<!-- Resumen -->
+<div class="row g-3 mb-5">
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <span class="text-muted small">Libros activos</span>
+      <span class="h3 fw-semibold mb-0">{{ total_libros }}</span>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <span class="text-muted small">Ejemplares disponibles</span>
+      <span class="h3 fw-semibold mb-0">{{ disponibles }}</span>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <span class="text-muted small">Apartados pendientes</span>
+      <span class="h3 fw-semibold mb-0">{{ pendientes }}</span>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3 h-100">
+      <span class="text-muted small">Préstamos activos</span>
+      <span class="h3 fw-semibold mb-0">{{ prestamos_activos }}</span>
+    </div>
+  </div>
+</div>
 
 <!-- Libros -->
 <section class="mb-5">

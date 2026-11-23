@@ -22,9 +22,6 @@ db = client.get_database("biblioteca_db")
 MINUTOS_EXPIRACION = 15
 
 
-# ------------------------------------------------------------------
-# Utilidades
-# ------------------------------------------------------------------
 def ahora():
     return datetime.utcnow()
 
@@ -269,11 +266,27 @@ def perfil():
 @admin_required
 def admin_panel():
     liberar_expirados()
+    total_libros = db.libros.count_documents({"activo": True})
+    disponibles = sum(
+        l.get("ejemplares_disponibles", 0)
+        for l in db.libros.find({"activo": True})
+    )
+    pendientes = db.apartados.count_documents({"estado": "pendiente"})
+    prestamos_activos = db.prestamos.count_documents({"estado": "activo"})
+
     libros = list(db.libros.find().sort("titulo", ASCENDING))
     apartados = list(db.apartados.find().sort("creado_en", -1).limit(50))
     prestamos = list(db.prestamos.find().sort("fecha_prestamo", -1).limit(50))
+
     return render_template(
-        "admin.html", libros=libros, apartados=apartados, prestamos=prestamos
+        "admin.html",
+        total_libros=total_libros,
+        disponibles=disponibles,
+        pendientes=pendientes,
+        prestamos_activos=prestamos_activos,
+        libros=libros,
+        apartados=apartados,
+        prestamos=prestamos,
     )
 
 
@@ -293,23 +306,6 @@ def admin_libro_nuevo():
         "creado_en": ahora(),
     })
     flash("Libro agregado.", "success")
-    return redirect(url_for("admin_panel"))
-
-
-@app.route("/admin/libro/<libro_id>/editar", methods=["POST"])
-@admin_required
-def admin_libro_editar(libro_id):
-    db.libros.update_one(
-        {"_id": ObjectId(libro_id)},
-        {"$set": {
-            "titulo": request.form["titulo"].strip(),
-            "autor": request.form["autor"].strip(),
-            "isbn": request.form.get("isbn", "").strip(),
-            "categoria": request.form.get("categoria", "").strip(),
-            "portada_url": request.form.get("portada_url", "").strip(),
-        }},
-    )
-    flash("Libro actualizado.", "success")
     return redirect(url_for("admin_panel"))
 
 
@@ -379,6 +375,37 @@ def admin_devolver(prestamo_id):
     )
     flash("Devolución registrada.", "success")
     return redirect(url_for("admin_panel"))
+
+
+@app.route("/admin/usuarios")
+@admin_required
+def admin_usuarios():
+    usuarios = list(db.usuarios.find().sort("creado_en", -1))
+    return render_template("admin_usuarios.html", usuarios=usuarios)
+
+
+@app.route("/admin/usuario/<usuario_id>/rol", methods=["POST"])
+@admin_required
+def admin_cambiar_rol(usuario_id):
+    usuario = db.usuarios.find_one({"_id": ObjectId(usuario_id)})
+    if usuario:
+        nuevo = "admin" if usuario["rol"] == "lector" else "lector"
+        db.usuarios.update_one(
+            {"_id": usuario["_id"]}, {"$set": {"rol": nuevo}}
+        )
+        flash(f"Rol de {usuario['nombre']} cambiado a {nuevo}.", "success")
+    return redirect(url_for("admin_usuarios"))
+
+
+@app.route("/admin/usuario/<usuario_id>/eliminar", methods=["POST"])
+@admin_required
+def admin_eliminar_usuario(usuario_id):
+    if str(usuario_id) == session.get("usuario_id"):
+        flash("No puedes eliminar tu propia cuenta desde el panel.", "warning")
+        return redirect(url_for("admin_usuarios"))
+    db.usuarios.delete_one({"_id": ObjectId(usuario_id)})
+    flash("Usuario eliminado.", "success")
+    return redirect(url_for("admin_usuarios"))
 
 
 # ------------------------------------------------------------------

@@ -1,8 +1,5 @@
 import os
 import uuid
-import base64
-import qrcode
-from io import BytesIO
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -238,13 +235,7 @@ def ver_qr_prestamo(codigo):
     # Generar URL absoluta de Render para el QR
     url_publica = url_for("comprobante_publico", codigo=codigo, _external=True)
     
-    # Generar imagen QR en memoria
-    img = qrcode.make(url_publica)
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    qr_base64 = base64.b64encode(buffered.getvalue()).decode()
-
-    return render_template("qr_prestamo.html", prestamo=prestamo, qr_base64=qr_base64, url_publica=url_publica)
+    return render_template("qr_prestamo.html", prestamo=prestamo, url_publica=url_publica)
 
 # NUEVA RUTA PÚBLICA: El QR apunta aquí
 @app.route("/comprobante/<codigo>")
@@ -290,13 +281,7 @@ def mis_apartados():
 @login_required
 def perfil():
     usuario = db.usuarios.find_one({"_id": ObjectId(session["usuario_id"])})
-    
-    img = qrcode.make(f"BIB|{usuario['matricula']}|{usuario['email']}")
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    qr_base64 = base64.b64encode(buffered.getvalue()).decode()
-
-    return render_template("perfil.html", usuario=usuario, qr_base64=qr_base64)
+    return render_template("perfil.html", usuario=usuario)
 
 # ------------------------------------------------------------------
 # Panel de administración

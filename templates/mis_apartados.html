@@ -30,12 +30,19 @@
         </td>
         <td class="text-end">
           {% if ap.estado == 'pendiente' %}
-            <a href="{{ url_for('confirmar', codigo=ap.codigo_confirmacion) }}"
-               class="btn btn-sm btn-bosque">Confirmar</a>
+            <a href="{{ url_for('confirmar', codigo=ap.codigo_confirmacion) }}" class="btn btn-sm btn-bosque mb-1">Confirmar</a>
           {% endif %}
+          
+          {% if ap.estado == 'confirmado' %}
+            <!-- BOTÓN PARA VER EL QR -->
+            <a href="{{ url_for('ver_qr_prestamo', codigo=ap.codigo_prestamo) }}" class="btn btn-sm btn-success mb-1">
+              <i class="bi bi-qr-code"></i> Ver QR
+            </a>
+          {% endif %}
+
           {% if ap.estado in ['pendiente', 'confirmado'] %}
             <form method="POST" action="{{ url_for('cancelar', apartado_id=ap._id) }}" class="d-inline">
-              <button class="btn btn-sm btn-outline-danger">Cancelar</button>
+              <button class="btn btn-sm btn-outline-danger mb-1">Cancelar</button>
             </form>
           {% endif %}
         </td>

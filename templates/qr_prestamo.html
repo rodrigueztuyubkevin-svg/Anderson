@@ -10,8 +10,8 @@
       <p class="text-muted">Presenta este código QR o escanéalo con tu celular para abrir el comprobante.</p>
       
       <div class="my-4">
-        <img src="data:image/png;base64,{{ qr_base64 }}" 
-             alt="QR de Préstamo" class="img-fluid border rounded-3 p-2 shadow-sm" style="max-width: 250px;">
+        <!-- Contenedor donde JavaScript dibujará el QR -->
+        <div id="qrcode" class="d-flex justify-content-center border rounded-3 p-2 shadow-sm" style="background: white;"></div>
         <p class="small text-muted mt-2">Escanéalo para ver el comprobante en línea</p>
       </div>
       
@@ -30,4 +30,23 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Librería que dibuja el QR en el navegador -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    var urlComprobante = "{{ url_publica }}";
+    
+    new QRCode(document.getElementById("qrcode"), {
+      text: urlComprobante,
+      width: 200,
+      height: 200,
+      colorDark : "#1f4d3a",
+      colorLight : "#ffffff",
+      correctLevel : QRCode.CorrectLevel.H
+    });
+  });
+</script>
 {% endblock %}

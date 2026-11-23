@@ -19,7 +19,8 @@ app.secret_key = os.environ.get("SECRET_KEY", "cambia_esto")
 client = MongoClient(os.environ.get("MONGO_URI"))
 db = client.get_database("biblioteca_db")
 
-MINUTOS_EXPIRACION = 15
+# CAMBIO: Ahora son 5 minutos para confirmar
+MINUTOS_EXPIRACION = 5
 
 
 def ahora():

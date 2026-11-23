@@ -8,13 +8,23 @@
         <i class="bi bi-shield-check me-2"></i>Confirma tu apartado
       </h2>
       <p class="mb-1"><strong>Libro:</strong> {{ apartado.libro_titulo }}</p>
-      <p class="text-muted small">
-        Tienes {{ restante }} minutos para confirmar. Después el ejemplar se libera.
-      </p>
-      <div class="alert alert-light border text-center">
+      
+      <!-- Contador visual -->
+      <div class="alert alert-warning d-flex align-items-center mt-3" role="alert">
+        <i class="bi bi-clock-history fs-4 me-3"></i>
+        <div>
+          <strong>Tiempo restante:</strong> 
+          <span id="contador" class="fs-5 fw-bold">{{ restante }}:00</span>
+          <br>
+          <span class="small">Si no confirmas a tiempo, el ejemplar se liberará automáticamente.</span>
+        </div>
+      </div>
+
+      <div class="alert alert-light border text-center mt-3">
         <span class="text-muted small d-block">Código de confirmación</span>
         <span class="h3 fw-bold">{{ apartado.codigo_confirmacion }}</span>
       </div>
+      
       <form method="POST" action="{{ url_for('confirmar_ok', codigo=apartado.codigo_confirmacion) }}">
         <button class="btn btn-bosque w-100">
           <i class="bi bi-check2-circle me-1"></i>Confirmar apartado
@@ -23,4 +33,48 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Tomamos el tiempo restante que calculó Flask (en minutos)
+  let minutosRestantes = {{ restante }};
+  
+  // Convertimos a segundos totales. Si el backend mandó 5, serán 300 segundos.
+  // Le restamos 1 segundo para que el primer renderizado sea exacto.
+  let segundosTotales = (minutosRestantes * 60) - 1;
+
+  const contadorElemento = document.getElementById('contador');
+  const formConfirmar = document.querySelector('form');
+
+  const intervalo = setInterval(() => {
+    if (segundosTotales <= 0) {
+      clearInterval(intervalo);
+      contadorElemento.textContent = "0:00";
+      contadorElemento.classList.remove('text-dark');
+      contadorElemento.classList.add('text-danger');
+      
+      // Deshabilitar el botón de confirmar
+      const boton = formConfirmar.querySelector('button');
+      boton.disabled = true;
+      boton.textContent = "Tiempo agotado";
+      
+      alert("El tiempo ha expirado. El libro ha sido liberado.");
+      window.location.href = "{{ url_for('index') }}";
+      return;
+    }
+
+    // Calcular minutos y segundos
+    const minutos = Math.floor(segundosTotales / 60);
+    const segundos = segundosTotales % 60;
+    
+    // Formatear con ceros a la izquierda (ej. 04:09)
+    const formatoMinutos = minutos.toString().padStart(2, '0');
+    const formatoSegundos = segundos.toString().padStart(2, '0');
+    
+    contadorElemento.textContent = `${formatoMinutos}:${formatoSegundos}`;
+    
+    segundosTotales--;
+  }, 1000);
+</script>
 {% endblock %}

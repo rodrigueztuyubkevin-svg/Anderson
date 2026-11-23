@@ -1,5 +1,8 @@
 import os
 import uuid
+import base64
+import qrcode
+from io import BytesIO
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -21,10 +24,8 @@ db = client.get_database("biblioteca_db")
 
 MINUTOS_EXPIRACION = 5
 
-
 def ahora():
     return datetime.utcnow()
-
 
 def init_db():
     db.usuarios.create_index([("email", ASCENDING)], unique=True)
@@ -35,7 +36,6 @@ def init_db():
     db.prestamos.create_index([("usuario_id", ASCENDING)])
     db.prestamos.create_index([("codigo_prestamo", ASCENDING)], unique=True)
 
-
 def login_required(f):
     @wraps(f)
     def wrapper(*a, **kw):
@@ -45,7 +45,6 @@ def login_required(f):
         return f(*a, **kw)
     return wrapper
 
-
 def admin_required(f):
     @wraps(f)
     def wrapper(*a, **kw):
@@ -54,7 +53,6 @@ def admin_required(f):
             return redirect(url_for("index"))
         return f(*a, **kw)
     return wrapper
-
 
 def liberar_expirados():
     limite = ahora() - timedelta(minutes=MINUTOS_EXPIRACION)
@@ -68,7 +66,6 @@ def liberar_expirados():
         db.libros.update_one(
             {"_id": ap["libro_id"]}, {"$inc": {"ejemplares_disponibles": 1}}
         )
-
 
 # ------------------------------------------------------------------
 # Autenticación
@@ -96,7 +93,6 @@ def registro():
         return redirect(url_for("login"))
     return render_template("registro.html")
 
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -112,13 +108,11 @@ def login():
         flash("Correo o contraseña incorrectos.", "danger")
     return render_template("login.html")
 
-
 @app.route("/logout")
 def logout():
     session.clear()
     flash("Sesión cerrada.", "info")
     return redirect(url_for("index"))
-
 
 # ------------------------------------------------------------------
 # Catálogo público
@@ -133,7 +127,6 @@ def index():
     )
     return render_template("index.html", libros=libros)
 
-
 @app.route("/libro/<libro_id>")
 def libro_detalle(libro_id):
     libro = db.libros.find_one({"_id": ObjectId(libro_id), "activo": True})
@@ -141,7 +134,6 @@ def libro_detalle(libro_id):
         flash("Libro no encontrado.", "danger")
         return redirect(url_for("index"))
     return render_template("libro_detalle.html", libro=libro)
-
 
 # ------------------------------------------------------------------
 # Apartados
@@ -176,7 +168,6 @@ def apartar(libro_id):
     })
     return redirect(url_for("confirmar", codigo=codigo))
 
-
 @app.route("/confirmar/<codigo>")
 @login_required
 def confirmar(codigo):
@@ -192,7 +183,6 @@ def confirmar(codigo):
         (ahora() - ap["creado_en"]).total_seconds() // 60
     )
     return render_template("confirmar.html", apartado=ap, restante=max(restante, 0))
-
 
 @app.route("/confirmar/<codigo>/ok", methods=["POST"])
 @login_required
@@ -211,18 +201,14 @@ def confirmar_ok(codigo):
         flash("El código expiró. Vuelve a apartar el libro.", "warning")
         return redirect(url_for("index"))
 
-    # Generar código único de préstamo
     codigo_prestamo = "PR-" + uuid.uuid4().hex[:6].upper()
-    
     usuario = db.usuarios.find_one({"_id": ap["usuario_id"]})
 
-    # Actualizar apartado
     db.apartados.update_one(
         {"_id": ap["_id"]},
         {"$set": {"estado": "confirmado", "confirmado_en": ahora(), "codigo_prestamo": codigo_prestamo}},
     )
 
-    # Crear el registro de préstamo oficial
     db.prestamos.insert_one({
         "usuario_id": usuario["_id"],
         "usuario_nombre": usuario["nombre"],
@@ -238,7 +224,6 @@ def confirmar_ok(codigo):
     flash("Apartado confirmado. Presenta el código QR para recoger tu libro.", "success")
     return redirect(url_for("ver_qr_prestamo", codigo=codigo_prestamo))
 
-
 @app.route("/prestamo/qr/<codigo>")
 @login_required
 def ver_qr_prestamo(codigo):
@@ -250,10 +235,14 @@ def ver_qr_prestamo(codigo):
         flash("Préstamo no encontrado.", "danger")
         return redirect(url_for("mis_apartados"))
     
-    # Datos que irán dentro del QR
+    # Generar imagen QR en memoria
     qr_data = f"PRESTAMO|{prestamo['codigo_prestamo']}|{prestamo['matricula']}"
-    return render_template("qr_prestamo.html", prestamo=prestamo, qr_data=qr_data)
+    img = qrcode.make(qr_data)
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    qr_base64 = base64.b64encode(buffered.getvalue()).decode()
 
+    return render_template("qr_prestamo.html", prestamo=prestamo, qr_base64=qr_base64)
 
 @app.route("/cancelar/<apartado_id>", methods=["POST"])
 @login_required
@@ -272,7 +261,6 @@ def cancelar(apartado_id):
         flash("Apartado cancelado.", "info")
     return redirect(url_for("mis_apartados"))
 
-
 @app.route("/mis-apartados")
 @login_required
 def mis_apartados():
@@ -284,7 +272,6 @@ def mis_apartados():
     )
     return render_template("mis_apartados.html", apartados=apartados)
 
-
 # ------------------------------------------------------------------
 # Perfil y credencial
 # ------------------------------------------------------------------
@@ -293,8 +280,14 @@ def mis_apartados():
 def perfil():
     usuario = db.usuarios.find_one({"_id": ObjectId(session["usuario_id"])})
     qr_data = f"BIB|{usuario['matricula']}|{usuario['email']}"
-    return render_template("perfil.html", usuario=usuario, qr_data=qr_data)
+    
+    # Generar QR de perfil
+    img = qrcode.make(qr_data)
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    qr_base64 = base64.b64encode(buffered.getvalue()).decode()
 
+    return render_template("perfil.html", usuario=usuario, qr_base64=qr_base64)
 
 # ------------------------------------------------------------------
 # Panel de administración
@@ -326,15 +319,11 @@ def admin_panel():
         prestamos=prestamos,
     )
 
-
-# NUEVA RUTA: Check de devolución por QR/Código
 @app.route("/admin/devolucion_qr", methods=["POST"])
 @admin_required
 def admin_devolucion_qr():
-    # El admin puede escanear el QR (que manda PRESTAMO|CODIGO|MATRICULA) o solo escribir el código
     raw_input = request.form.get("codigo_qr", "").strip()
     
-    # Si el lector escaneó todo el texto del QR, extraemos solo el código
     if "|" in raw_input:
         partes = raw_input.split("|")
         if len(partes) >= 2:
@@ -351,25 +340,19 @@ def admin_devolucion_qr():
         flash("No se encontró un préstamo activo con ese código.", "danger")
         return redirect(url_for("admin_panel"))
 
-    # Marcar como devuelto
     db.prestamos.update_one(
         {"_id": prestamo["_id"]},
         {"$set": {"estado": "devuelto", "fecha_devolucion": ahora()}},
     )
-    
-    # Devolver el ejemplar al catálogo
     db.libros.update_one(
         {"_id": prestamo["libro_id"]}, {"$inc": {"ejemplares_disponibles": 1}}
     )
-    
-    # Actualizar el apartado relacionado
     db.apartados.update_one(
         {"codigo_prestamo": codigo_prestamo}, {"$set": {"estado": "devuelto"}}
     )
 
     flash(f"Devolución exitosa: {prestamo['libro_titulo']} devuelto por {prestamo['usuario_nombre']}.", "success")
     return redirect(url_for("admin_panel"))
-
 
 @app.route("/admin/libro/nuevo", methods=["POST"])
 @admin_required
@@ -389,7 +372,6 @@ def admin_libro_nuevo():
     flash("Libro agregado.", "success")
     return redirect(url_for("admin_panel"))
 
-
 @app.route("/admin/libro/<libro_id>/estado", methods=["POST"])
 @admin_required
 def admin_libro_estado(libro_id):
@@ -399,7 +381,6 @@ def admin_libro_estado(libro_id):
             {"_id": libro["_id"]}, {"$set": {"activo": not libro["activo"]}}
         )
     return redirect(url_for("admin_panel"))
-
 
 @app.route("/admin/apartado/<apartado_id>/<estado>", methods=["POST"])
 @admin_required
@@ -416,7 +397,6 @@ def admin_apartado_estado(apartado_id, estado):
     )
     flash("Estado actualizado.", "success")
     return redirect(url_for("admin_panel"))
-
 
 @app.route("/admin/prestamo", methods=["POST"])
 @admin_required
@@ -447,7 +427,6 @@ def admin_prestamo():
     flash(f"Préstamo registrado para {usuario['nombre']}.", "success")
     return redirect(url_for("admin_panel"))
 
-
 @app.route("/admin/prestamo/<prestamo_id>/devolver", methods=["POST"])
 @admin_required
 def admin_devolver(prestamo_id):
@@ -463,13 +442,11 @@ def admin_devolver(prestamo_id):
         flash("Devolución registrada.", "success")
     return redirect(url_for("admin_panel"))
 
-
 @app.route("/admin/usuarios")
 @admin_required
 def admin_usuarios():
     usuarios = list(db.usuarios.find().sort("creado_en", -1))
     return render_template("admin_usuarios.html", usuarios=usuarios)
-
 
 @app.route("/admin/usuario/<usuario_id>/rol", methods=["POST"])
 @admin_required
@@ -483,7 +460,6 @@ def admin_cambiar_rol(usuario_id):
         flash(f"Rol de {usuario['nombre']} cambiado a {nuevo}.", "success")
     return redirect(url_for("admin_usuarios"))
 
-
 @app.route("/admin/usuario/<usuario_id>/eliminar", methods=["POST"])
 @admin_required
 def admin_eliminar_usuario(usuario_id):
@@ -494,13 +470,11 @@ def admin_eliminar_usuario(usuario_id):
     flash("Usuario eliminado.", "success")
     return redirect(url_for("admin_usuarios"))
 
-
 # ------------------------------------------------------------------
 # Arranque
 # ------------------------------------------------------------------
 with app.app_context():
     init_db()
-
 
 if __name__ == "__main__":
     app.run(debug=True)
